@@ -1,0 +1,1 @@
+./configure --host=i686-pc-mingw32 --with-sdl --with-sdl-sound --with-sdl-gfx --disable-gtktest --enable-jit --disable-natmem --with-guichan-gui 

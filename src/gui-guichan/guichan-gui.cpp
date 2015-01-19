@@ -1,0 +1,736 @@
+/*
+ * UAE - The Un*x Amiga Emulator
+ *
+ * Interface to the Tcl/Tk GUI
+ *
+ * Copyright 1996 Bernd Schmidt
+ */
+
+#include <algorithm>
+#include <guichan.hpp>
+#include <iostream>
+#include <sstream>
+#include <SDL/SDL_ttf.h>
+#include <guichan/sdl.hpp>
+#include "sdltruetypefont.hpp"
+
+extern "C"
+{
+#include "sysconfig.h"
+#include "sysdeps.h"
+
+#include "audio.h"
+#include "options.h"
+#include "gui.h"
+#include "uae.h"
+}
+#define PANDORA
+
+#if defined(ANDROID)
+#include <android/log.h>
+#include <SDL_screenkeyboard.h>
+#endif
+
+//SDL_Surface* screen;
+extern SDL_Surface* screen;
+
+int emulating;
+bool guiActive = false;
+int guiOpenScreen=1;
+int emuState;
+int mainMenu_onScreen=1;
+
+#define GUI_WIDTH  640
+#define GUI_HEIGHT 512
+
+char currentDir[300];
+char launchDir[300];
+
+bool CheckKickstart()
+{
+    char path[300];
+    strcpy(path,launchDir);
+    strcat(path,"/");
+    strcat(path,"kick.rom");
+    FILE *f=fopen(path,"r");
+    if(f) {
+        fclose(f);
+        return true;
+    }
+    strcpy(path,changed_prefs.romfile);
+    f=fopen (path, "r" );
+    if(f) {
+        fclose(f);
+        return true;
+    }
+    return false;
+}
+
+namespace globals
+{
+gcn::Gui* gui;
+}
+
+namespace sdl
+{
+// Main objects to draw graphics and get user input
+gcn::SDLGraphics* graphics;
+gcn::SDLInput* input;
+gcn::SDLImageLoader* imageLoader;
+
+void init()
+{
+#ifdef PANDORA
+    char layersize[20];
+    snprintf(layersize, 20, "%dx%d", GUI_WIDTH, GUI_HEIGHT);
+
+    char bordercut[20];
+    snprintf(bordercut, 20, "0,0,0,0");
+
+#endif
+    if (guiOpenScreen)
+        screen = SDL_SetVideoMode(GUI_WIDTH, GUI_HEIGHT, 16, SDL_SWSURFACE);
+
+    SDL_EnableUNICODE(1);
+    SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+
+#ifdef ANDROID
+    // Enable Android multitouch
+    SDL_InitSubSystem(SDL_INIT_JOYSTICK);
+    SDL_JoystickOpen(0);
+#endif
+#ifdef PANDORA
+    SDL_ShowCursor(SDL_ENABLE);
+#endif
+
+    imageLoader = new gcn::SDLImageLoader();
+    gcn::Image::setImageLoader(imageLoader);
+
+    graphics = new gcn::SDLGraphics();
+    graphics->setTarget(screen);
+
+    input = new gcn::SDLInput();
+
+    globals::gui = new gcn::Gui();
+    globals::gui->setGraphics(graphics);
+    globals::gui->setInput(input);
+}
+
+
+void halt()
+{
+    delete globals::gui;
+    delete imageLoader;
+    delete input;
+    delete graphics;
+}
+
+
+void run()
+{
+    // The main loop
+    while(guiActive) {
+        // Check user input
+        SDL_Event event;
+        while(SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                guiActive = false;
+                break;
+            } else if (event.type == SDL_KEYDOWN) {
+                switch(event.key.keysym.sym) {
+                case SDLK_ESCAPE:
+                case SDLK_RCTRL:
+                    guiActive = false;
+                    break;
+
+                case SDLK_F15:
+                    if (!guiOpenScreen) {
+                        guiActive = false;
+                    }
+                    break;
+
+#ifndef PANDORA
+                case SDLK_f:
+                    if (event.key.keysym.mod & KMOD_CTRL) {
+                        // Works with X11 only
+                        SDL_WM_ToggleFullScreen(screen);
+                    }
+                    break;
+#endif
+                }
+            }
+#ifdef ANDROID
+            /*
+             * Now that we are done polling and using SDL events we pass
+             * the leftovers to the SDLInput object to later be handled by
+             * the Gui. (This example doesn't require us to do this 'cause a
+             * label doesn't use input. But will do it anyway to show how to
+             * set up an SDL application with Guichan.)
+             */
+            if (event.type == SDL_MOUSEMOTION ||
+                event.type == SDL_MOUSEBUTTONDOWN ||
+                event.type == SDL_MOUSEBUTTONUP) {
+                // Filter emulated mouse events for Guichan, we wand absolute input
+            } else {
+                // Convert multitouch event to SDL mouse event
+                static int x = 0, y = 0, buttons = 0, wx=0, wy=0, pr=0;
+                SDL_Event event2;
+                memcpy(&event2, &event, sizeof(event));
+                if (event.type == SDL_JOYBALLMOTION &&
+                    event.jball.which == 0 &&
+                    event.jball.ball == 0) {
+                    event2.type = SDL_MOUSEMOTION;
+                    event2.motion.which = 0;
+                    event2.motion.state = buttons;
+                    event2.motion.xrel = event.jball.xrel - x;
+                    event2.motion.yrel = event.jball.yrel - y;
+                    if (event.jball.xrel!=0) {
+                        x = event.jball.xrel;
+                        y = event.jball.yrel;
+                    }
+                    event2.motion.x = x;
+                    event2.motion.y = y;
+                    //__android_log_print(ANDROID_LOG_INFO, "GUICHAN","Mouse motion %d %d btns %d", x, y, buttons);
+                    if (buttons == 0) {
+                        // Push mouse motion event first, then button down event
+                        input->pushInput(event2);
+                        buttons = SDL_BUTTON_LMASK;
+                        event2.type = SDL_MOUSEBUTTONDOWN;
+                        event2.button.which = 0;
+                        event2.button.button = SDL_BUTTON_LEFT;
+                        event2.button.state =  SDL_PRESSED;
+                        event2.button.x = x;
+                        event2.button.y = y;
+                        //__android_log_print(ANDROID_LOG_INFO, "GUICHAN","Mouse button %d coords %d %d", buttons, x, y);
+                    }
+                }
+                if (event.type == SDL_JOYBUTTONUP &&
+                    event.jbutton.which == 0 &&
+                    event.jbutton.button == 0) {
+                    // Do not push button down event here, because we need mouse motion event first
+                    buttons = 0;
+                    event2.type = SDL_MOUSEBUTTONUP;
+                    event2.button.which = 0;
+                    event2.button.button = SDL_BUTTON_LEFT;
+                    event2.button.state = SDL_RELEASED;
+                    event2.button.x = x;
+                    event2.button.y = y;
+                    //__android_log_print(ANDROID_LOG_INFO, "GUICHAN","Mouse button %d coords %d %d", buttons, x, y);
+                }
+                input->pushInput(event2);
+            }
+#else
+            input->pushInput(event);
+#endif
+        }
+        // Now we let the Gui object perform its logic.
+        globals::gui->logic();
+        // Now we let the Gui object draw itself.
+        globals::gui->draw();
+        // Finally we update the screen.
+        SDL_Flip(screen);
+    }
+}
+
+}
+
+
+namespace widgets
+{
+void showWarning(const char *msg, const char *msg2 = "");
+void show_settings(void);
+void show_settings_Config(void);
+void show_settings_Paths(void);
+void show_settings_Floppy(void);
+void show_settings_Hdd(void);
+void show_settings_CpuFpu(void);
+void show_settings_Chipset(void);
+void show_settings_Rom(void);
+void show_settings_Ram(void);
+void show_settings_Display(void);
+void show_settings_Sound(void);
+void show_settings_Control(void);
+void show_settings_OnScreen(void);
+
+void menuConfig_Init(void);
+void menuConfig_Exit(void);
+void menuPaths_Init(void);
+void menuPaths_Exit(void);
+void menuFloppy_Init(void);
+void menuFloppy_Exit(void);
+void menuHdd_Init(void);
+void menuHdd_Exit(void);
+void menuCpuFpu_Init(void);
+void menuCpuFpu_Exit(void);
+void menuChipset_Init(void);
+void menuChipset_Exit(void);
+void menuRom_Init(void);
+void menuRom_Exit(void);
+void menuRam_Init(void);
+void menuRam_Exit(void);
+void menuDisplay_Init(void);
+void menuDisplay_Exit(void);
+void menuSound_Init(void);
+void menuSound_Exit(void);
+void menuControl_Init(void);
+void menuControl_Exit(void);
+void menuOnScreen_Init(void);
+void menuOnScreen_Exit(void);
+
+void addEditHdd_Init(void);
+void addEditHdd_Exit(void);
+void loadMenu_Init(void);
+void loadMenu_Exit(void);
+void menuMessage_Init(void);
+void menuMessage_Exit(void);
+
+gcn::Color baseCol;
+gcn::Color baseColLabel;
+gcn::Container* top;
+gcn::contrib::SDLTrueTypeFont* font;
+gcn::contrib::SDLTrueTypeFont* font2;
+
+gcn::ListBox* menuListBox;
+
+// Main buttons
+gcn::Image *background_image;
+gcn::Icon* background;
+
+gcn::Button* button_reset;
+gcn::Button* button_resume;
+gcn::Button* button_quit;
+extern gcn::Window *window_load;
+extern gcn::Window *window_warning;
+extern gcn::Window *window_addEditHdd;
+extern gcn::Window *window_config;
+extern gcn::Window *window_paths;
+extern gcn::Window *window_floppy;
+extern gcn::Window *window_hdd;
+extern gcn::Window *window_cpufpu;
+extern gcn::Window *window_chipset;
+extern gcn::Window *window_rom;
+extern gcn::Window *window_ram;
+extern gcn::Window *window_display;
+extern gcn::Window *window_sound;
+extern gcn::Window *window_control;
+extern gcn::Window *window_onScreen;
+
+std::string menuElement[]= {"Config", "Paths", "Floppy drives", "Hard Drives","CPU/FPU","Chipset","ROM","RAM","Display","Sound","SaveStates","Control","Custom","On-screen"};
+
+class MenuListModel : public gcn::ListModel
+{
+public:
+    int getNumberOfElements() {
+        return 14;
+    }
+
+    std::string getElementAt(int i) {
+        return menuElement[i];
+    }
+};
+MenuListModel menuListModel;
+
+class QuitButtonActionListener : public gcn::ActionListener
+{
+public:
+    void action(const gcn::ActionEvent& actionEvent) {
+        guiActive = false;
+        emuState=UAE_STATE_QUITTING;
+#ifdef ANDROID
+        exit(0);
+#endif
+        uae_quit ();
+    }
+};
+QuitButtonActionListener* quitButtonActionListener;
+
+
+class ResetButtonActionListener : public gcn::ActionListener
+{
+public:
+    void action(const gcn::ActionEvent& actionEvent) {
+        // checking if kickrom file exist
+        if(CheckKickstart()) {
+            guiActive = false;
+            emuState=UAE_STATE_COLD_START;
+        } else
+            widgets::showWarning("Kickstart Main ROM - not found.");
+    }
+};
+ResetButtonActionListener* resetButtonActionListener;
+
+
+class ResumeButtonActionListener : public gcn::ActionListener
+{
+public:
+    void action(const gcn::ActionEvent& actionEvent) {
+        if (!guiOpenScreen) {
+            guiActive = false;
+        }
+    }
+};
+ResumeButtonActionListener* resumeButtonActionListener;
+
+class MenuActionListener : public gcn::ActionListener
+{
+public:
+    void action(const gcn::ActionEvent& actionEvent) {
+        int selectedItem;
+        selectedItem=menuListBox->getSelected();
+        window_config->setVisible(false);
+        window_paths->setVisible(false);
+        window_floppy->setVisible(false);
+        window_hdd->setVisible(false);
+        window_cpufpu->setVisible(false);
+        window_chipset->setVisible(false);
+        window_rom->setVisible(false);
+        window_ram->setVisible(false);
+        window_display->setVisible(false);
+        window_sound->setVisible(false);
+        window_control->setVisible(false);
+        window_onScreen->setVisible(false);
+        if (selectedItem==0)
+            window_config->setVisible(true);
+        else if (selectedItem==1)
+            window_paths->setVisible(true);
+        else if (selectedItem==2)
+            window_floppy->setVisible(true);
+        else if (selectedItem==3)
+            window_hdd->setVisible(true);
+        else if (selectedItem==4)
+            window_cpufpu->setVisible(true);
+        else if (selectedItem==5)
+            window_chipset->setVisible(true);
+        else if (selectedItem==6)
+            window_rom->setVisible(true);
+        else if (selectedItem==7)
+            window_ram->setVisible(true);
+        else if (selectedItem==8)
+            window_display->setVisible(true);
+        else if (selectedItem==9)
+            window_sound->setVisible(true);
+        else if (selectedItem==11)
+            window_control->setVisible(true);
+        else if (selectedItem==13)
+            window_onScreen->setVisible(true);
+    }
+};
+MenuActionListener* menuActionListener;
+
+void init()
+{
+    baseCol.r = 192;
+    baseCol.g = 192;
+    baseCol.b = 208;
+    baseColLabel.r = baseCol.r;
+    baseColLabel.g = baseCol.g;
+    baseColLabel.b = baseCol.b;
+    baseColLabel.a = 192;
+
+    top = new gcn::Container();
+    top->setDimension(gcn::Rectangle(0, 0, 640, 512));
+    top->setBaseColor(baseCol);
+    globals::gui->setTop(top);
+
+    TTF_Init();
+    font = new gcn::contrib::SDLTrueTypeFont("data/FreeSans.ttf", 16);
+    font2 = new gcn::contrib::SDLTrueTypeFont("data/FreeSans.ttf", 19);
+    gcn::Widget::setGlobalFont(font);
+
+    background_image = gcn::Image::load("data/supersonic640x512.jpg");
+    background = new gcn::Icon(background_image);
+
+    //--------------------------------------------------
+    // Create main menu list
+    //--------------------------------------------------
+
+    menuListBox = new gcn::ListBox(&menuListModel);
+    menuListBox->setId("menuList");
+    menuListBox->setPosition(15,20);
+    menuListBox->setSize(120,400);
+    menuListBox->setFont(font2);
+    menuListBox->setBaseColor(baseCol);
+    menuListBox->setFocusable(true);
+    menuListBox->setWrappingEnabled(true);
+    menuActionListener = new MenuActionListener();
+    menuListBox->addActionListener(menuActionListener);
+
+    //--------------------------------------------------
+    // Create main buttons
+    //--------------------------------------------------
+
+    button_quit = new gcn::Button("Quit");
+    button_quit->setSize(90,50);
+    button_quit->setBaseColor(baseCol);
+    button_quit->setId("Quit");
+    quitButtonActionListener = new QuitButtonActionListener();
+    button_quit->addActionListener(quitButtonActionListener);
+
+    button_reset = new gcn::Button("Start");
+    button_reset->setSize(90,50);
+    button_reset->setBaseColor(baseCol);
+    button_reset->setId("Reset");
+    resetButtonActionListener = new ResetButtonActionListener();
+    button_reset->addActionListener(resetButtonActionListener);
+
+    button_resume = new gcn::Button("Resume");
+    button_resume->setSize(90,50);
+    button_resume->setBaseColor(baseCol);
+    button_resume->setId("Resume");
+    resumeButtonActionListener = new ResumeButtonActionListener();
+    button_resume->addActionListener(resumeButtonActionListener);
+
+    //--------------------------------------------------
+    // Pleace all main windows
+    //--------------------------------------------------
+
+    menuConfig_Init();
+    menuPaths_Init();
+    menuFloppy_Init();
+    menuHdd_Init();
+    menuCpuFpu_Init();
+    menuChipset_Init();
+    menuRom_Init();
+    menuRam_Init();
+    menuDisplay_Init();
+    menuSound_Init();
+    menuControl_Init();
+    menuOnScreen_Init();
+
+    addEditHdd_Init();
+    menuMessage_Init();
+    loadMenu_Init();
+
+    //--------------------------------------------------
+    // Place everything on main form
+    //--------------------------------------------------
+    top->add(background, 0, 0);
+    top->add(button_reset, 210, 440);
+    top->add(button_resume, 320, 440);
+    top->add(button_quit, 430, 440);
+    top->add(menuListBox);
+    top->add(window_config);
+    top->add(window_paths);
+    top->add(window_floppy);
+    top->add(window_hdd);
+    top->add(window_cpufpu);
+    top->add(window_chipset);
+    top->add(window_rom);
+    top->add(window_ram);
+    top->add(window_display);
+    top->add(window_sound);
+    top->add(window_control);
+    top->add(window_onScreen);
+    top->add(window_addEditHdd, 120, 90);
+    top->add(window_load, 120, 90);
+    top->add(window_warning, 170, 220);
+
+    //--------------------------------------------------
+    // Display values on controls
+    //--------------------------------------------------
+    show_settings();
+}
+
+//--------------------------------------------------
+// Initialize focus handling
+//--------------------------------------------------
+//    button_reset->setFocusable(true);
+//    button_resume->setFocusable(true);
+//    button_quit->setFocusable(true);
+
+void halt()
+{
+    menuConfig_Exit();
+    menuPaths_Exit();
+    menuFloppy_Exit();
+    menuHdd_Exit();
+    menuCpuFpu_Exit();
+    menuChipset_Exit();
+    menuRom_Exit();
+    menuRam_Exit();
+    menuDisplay_Exit();
+    menuSound_Exit();
+    menuControl_Exit();
+    menuOnScreen_Exit();
+
+    addEditHdd_Exit();
+    menuMessage_Exit();
+    loadMenu_Exit();
+
+    delete menuListBox;
+    delete button_reset;
+    delete button_resume;
+    delete button_quit;
+
+
+    delete menuActionListener;
+    delete resumeButtonActionListener;
+    delete resetButtonActionListener;
+    delete quitButtonActionListener;
+
+    delete background;
+    delete background_image;
+
+    delete font;
+    delete font2;
+    delete top;
+}
+
+//-----------------------------------------------
+// Start of helper functions
+//-----------------------------------------------
+void show_settings()
+{
+    show_settings_Config();
+    show_settings_Paths();
+    show_settings_Floppy();
+    show_settings_Hdd();
+    show_settings_CpuFpu();
+    show_settings_Chipset();
+    show_settings_Rom();
+    show_settings_Ram();
+    show_settings_Display();
+    show_settings_Sound();
+    show_settings_Control();
+    show_settings_OnScreen();
+}
+
+}
+
+void gui_init (int argc, char **argv)
+{
+    getcwd(launchDir, 250);
+}
+
+int gui_open (void)
+{
+    getcwd(launchDir, 250);
+    strcmp(currentDir,launchDir);
+#ifdef ANDROID
+    SDL_ANDROID_SetScreenKeyboardShown(0);
+#endif
+    guiActive = true;
+
+    try {
+        sdl::init();
+        widgets::init();
+        sdl::run();
+        widgets::halt();
+        sdl::halt();
+#ifdef ANDROID
+        if (mainMenu_onScreen)
+            SDL_ANDROID_SetScreenKeyboardShown(1);
+        else
+            SDL_ANDROID_SetScreenKeyboardShown(0);
+#endif
+    }
+
+    // Catch all Guichan exceptions.
+    catch (gcn::Exception e) {
+        std::cout << e.getMessage() << std::endl;
+        SDL_Quit();
+    }
+    // Catch all Std exceptions.
+    catch (std::exception e) {
+        std::cout << "Std exception: " << e.what() << std::endl;
+        SDL_Quit();
+    }
+    // Catch all unknown exceptions.
+    catch (...) {
+        std::cout << "Unknown exception" << std::endl;
+        SDL_Quit();
+    }
+
+    return -1;
+}
+
+void gui_notify_state (int state)
+{
+}
+
+int gui_update (void)
+{
+    return 0;
+}
+
+void gui_exit (void)
+{
+}
+
+void gui_fps (int fps, int idle)
+{
+    gui_data.fps  = fps;
+    gui_data.idle = idle;
+}
+
+void gui_led (int led, int on)
+{
+}
+
+void gui_hd_led (int led)
+{
+    static int resetcounter;
+
+    int old = gui_data.hd;
+
+    if (led == 0) {
+        resetcounter--;
+        if (resetcounter > 0)
+            return;
+    }
+
+    gui_data.hd = led;
+    resetcounter = 6;
+    if (old != gui_data.hd)
+        gui_led (5, gui_data.hd);
+}
+
+void gui_cd_led (int led)
+{
+    static int resetcounter;
+
+    int old = gui_data.cd;
+    if (led == 0) {
+        resetcounter--;
+        if (resetcounter > 0)
+            return;
+    }
+
+    gui_data.cd = led;
+    resetcounter = 6;
+    if (old != gui_data.cd)
+        gui_led (6, gui_data.cd);
+}
+
+void gui_filename (int num, const char *name)
+{
+}
+
+void gui_handle_events (void)
+{
+    if (emuState==UAE_STATE_QUITTING)
+        uae_quit();
+    else if (emuState==UAE_STATE_COLD_START) {
+        emuState=0;
+        if (!guiOpenScreen) {
+            uae_reset(0);
+        }
+    }
+}
+
+void gui_display(int shortcut)
+{
+
+}
+
+void gui_message (const char *format,...)
+{
+    char msg[2048];
+    va_list parms;
+
+    va_start (parms,format);
+    vsprintf ( msg, format, parms);
+    va_end (parms);
+
+    write_log ("%s",msg);
+}
