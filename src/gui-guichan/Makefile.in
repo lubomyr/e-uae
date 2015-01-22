@@ -199,8 +199,8 @@ noinst_LIBRARIES = libguidep.a
 
 libguidep_a_SOURCES = guichan-gui.cpp menuMessage.cpp menuLoad_guichan.cpp menuConfig.cpp \
 	menuPaths.cpp menuFloppy.cpp menuHdd.cpp menuAddEditHdd.cpp menuCpuFpu.cpp menuChipset.cpp \
-	menuRom.cpp menuRam.cpp menuDisplay.cpp menuSound.cpp menuControl.cpp menuOnScreen.cpp \
-	sdltruetypefont.cpp
+	menuRom.cpp menuRam.cpp menuDisplay.cpp menuSound.cpp menuSaveState.cpp menuControl.cpp \
+	menuCustom.cpp menuOnScreen.cpp sdltruetypefont.cpp
 
 subdir = src/gui-guichan
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -216,8 +216,10 @@ am_libguidep_a_OBJECTS = guichan-gui.$(OBJEXT) menuMessage.$(OBJEXT) \
 	menuPaths.$(OBJEXT) menuFloppy.$(OBJEXT) menuHdd.$(OBJEXT) \
 	menuAddEditHdd.$(OBJEXT) menuCpuFpu.$(OBJEXT) \
 	menuChipset.$(OBJEXT) menuRom.$(OBJEXT) menuRam.$(OBJEXT) \
-	menuDisplay.$(OBJEXT) menuSound.$(OBJEXT) menuControl.$(OBJEXT) \
-	menuOnScreen.$(OBJEXT) sdltruetypefont.$(OBJEXT)
+	menuDisplay.$(OBJEXT) menuSound.$(OBJEXT) \
+	menuSaveState.$(OBJEXT) menuControl.$(OBJEXT) \
+	menuCustom.$(OBJEXT) menuOnScreen.$(OBJEXT) \
+	sdltruetypefont.$(OBJEXT)
 libguidep_a_OBJECTS = $(am_libguidep_a_OBJECTS)
 
 DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)/src
@@ -228,14 +230,15 @@ am__depfiles_maybe = depfiles
 @AMDEP_TRUE@	./$(DEPDIR)/menuChipset.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/menuConfig.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/menuControl.Po \
-@AMDEP_TRUE@	./$(DEPDIR)/menuCpuFpu.Po \
+@AMDEP_TRUE@	./$(DEPDIR)/menuCpuFpu.Po ./$(DEPDIR)/menuCustom.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/menuDisplay.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/menuFloppy.Po ./$(DEPDIR)/menuHdd.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/menuLoad_guichan.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/menuMessage.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/menuOnScreen.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/menuPaths.Po ./$(DEPDIR)/menuRam.Po \
-@AMDEP_TRUE@	./$(DEPDIR)/menuRom.Po ./$(DEPDIR)/menuSound.Po \
+@AMDEP_TRUE@	./$(DEPDIR)/menuRom.Po ./$(DEPDIR)/menuSaveState.Po \
+@AMDEP_TRUE@	./$(DEPDIR)/menuSound.Po \
 @AMDEP_TRUE@	./$(DEPDIR)/sdltruetypefont.Po
 CXXCOMPILE = $(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
 	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS)
@@ -275,6 +278,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuConfig.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuControl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuCpuFpu.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuCustom.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuDisplay.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuFloppy.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuHdd.Po@am__quote@
@@ -284,6 +288,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuPaths.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuRam.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuRom.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuSaveState.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/menuSound.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sdltruetypefont.Po@am__quote@
 

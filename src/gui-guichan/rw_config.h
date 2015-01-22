@@ -9,6 +9,7 @@
 #define MENU_SELECT_ROMPATH 7
 #define MENU_SELECT_FLOPPYPATH 8
 #define MENU_SELECT_HARDFILEPATH 9
+#define MENU_SELECT_SAVESTATEPATH 10
 
 extern int current_drive;
 extern char launchDir[300];
