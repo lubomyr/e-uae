@@ -23,8 +23,8 @@
 int menuLoad_extfilter=1;
 bool confirmselection = false;
 
-#define NOTDIR_SELECTION (menu_load_type !=MENU_LOAD_DIR && menu_load_type !=MENU_SELECT_ROMPATH && menu_load_type !=MENU_SELECT_FLOPPYPATH && menu_load_type !=MENU_SELECT_HARDFILEPATH)
-#define DIR_SELECTION (menu_load_type ==MENU_LOAD_DIR || menu_load_type ==MENU_SELECT_ROMPATH || menu_load_type ==MENU_SELECT_FLOPPYPATH || menu_load_type ==MENU_SELECT_HARDFILEPATH)
+#define NOTDIR_SELECTION (menu_load_type !=MENU_LOAD_DIR && menu_load_type !=MENU_SELECT_ROMPATH && menu_load_type !=MENU_SELECT_FLOPPYPATH && menu_load_type !=MENU_SELECT_HARDFILEPATH && menu_load_type !=MENU_SELECT_SAVESTATEPATH)
+#define DIR_SELECTION (menu_load_type ==MENU_LOAD_DIR || menu_load_type ==MENU_SELECT_ROMPATH || menu_load_type ==MENU_SELECT_FLOPPYPATH || menu_load_type ==MENU_SELECT_HARDFILEPATH || menu_load_type ==MENU_SELECT_SAVESTATEPATH)
 #define extterms files[q].size()>=4 && files[q].substr(files[q].size()-4)
 #define floppyterms extterms!=".adf" && extterms!=".ADF" && extterms!=".Adf" && extterms!=".adz" && extterms!=".ADZ" && extterms!=".Adz" && extterms!="f.gz" && extterms!="F.GZ" && extterms!=".bz2" && extterms!=".BZ2" && extterms!=".Bz2" && extterms!=".zip" && extterms!=".ZIP" && extterms!=".Zip" && extterms!=".RP9" && extterms!=".rp9"
 #define hddirterms extterms!=".hdf" && extterms!=".HDF" && extterms!=".Hdf"
@@ -150,9 +150,8 @@ gcn::Button* button_cancel;
 gcn::TextField* textTempRom;
 gcn::TextField* textTempFloppy;
 gcn::TextField* textTempHardfile;
-#ifdef ANDROID
+gcn::TextField* textTempSavestate;
 gcn::CheckBox* checkBox_extfilter;
-#endif
 gcn::ListBox* listBox;
 gcn::ScrollArea* listBoxScrollArea;
 
@@ -213,9 +212,7 @@ public:
         if (NOTDIR_SELECTION)
             std::sort(files.begin(), files.end());
 
-#ifdef ANDROID
         if (menuLoad_extfilter==1)
-#endif
             for (int q=0; q<files.size(); q++) {
                 if (((menu_load_type == MENU_LOAD_FLOPPY) && floppyterms) || ((menu_load_type == MENU_SELECT_MAIN_ROM) && romterms) || ((menu_load_type == MENU_SELECT_EXT_ROM) && romterms) || ((menu_load_type == MENU_SELECT_KEY_ROM) && romterms)) {
                     files.erase(files.begin()+q);
@@ -263,7 +260,7 @@ public:
     void action(const gcn::ActionEvent& actionEvent) {
         int selected_item;
         char filename[256]="";
-		
+
         selected_item = listBox->getSelected();
         lastSelectedIndex = selected_item;
         strcpy(filename, "");
@@ -277,22 +274,19 @@ public:
         if (menu_load_type ==MENU_LOAD_DIR) {
             textField_path->setText(filename);
             textField_volumeName->setText(dirList.getElementAt(selected_item).c_str());
+        } else if (menu_load_type ==MENU_SELECT_ROMPATH) {
+            textTempRom->setText(filename);
+            prefs_set_attr ("rom_path", textTempRom->getText().c_str());
+        } else if (menu_load_type ==MENU_SELECT_FLOPPYPATH) {
+            textTempFloppy->setText(filename);
+            prefs_set_attr ("floppy_path", textTempFloppy->getText().c_str());
+        } else if (menu_load_type ==MENU_SELECT_HARDFILEPATH) {
+            textTempHardfile->setText(filename);
+            prefs_set_attr ("hardfile_path", textTempHardfile->getText().c_str());
+        } else if (menu_load_type ==MENU_SELECT_SAVESTATEPATH) {
+            textTempSavestate->setText(filename);
+            prefs_set_attr ("savestate_path", textTempSavestate->getText().c_str());
         }
-		else if (menu_load_type ==MENU_SELECT_ROMPATH)
-		{
-			textTempRom->setText(filename);
-			prefs_set_attr ("rom_path", textTempRom->getText().c_str());
-		}
-		else if (menu_load_type ==MENU_SELECT_FLOPPYPATH)
-		{
-			textTempFloppy->setText(filename);
-		    prefs_set_attr ("floppy_path", textTempFloppy->getText().c_str());
-		}
-		else if (menu_load_type ==MENU_SELECT_HARDFILEPATH)
-		{
-			textTempHardfile->setText(filename);
-			prefs_set_attr ("hardfile_path", textTempHardfile->getText().c_str());
-		}
         confirmselection=true;
         unraise_loadMenu_guichan();
     }
@@ -400,7 +394,6 @@ public:
 };
 ListBoxKeyListener* listBoxKeyListener;
 
-#ifdef ANDROID
 class ExtfilterActionListener : public gcn::ActionListener
 {
 public:
@@ -415,7 +408,6 @@ public:
     }
 };
 ExtfilterActionListener* extfilterActionListener;
-#endif
 
 void loadMenu_Init()
 {
@@ -448,10 +440,11 @@ void loadMenu_Init()
     cancelButtonActionListener = new CancelButtonActionListener();
     button_cancel->addActionListener(cancelButtonActionListener);
 
-	textTempRom = new gcn::TextField("");
-	textTempFloppy = new gcn::TextField("");
-	textTempHardfile = new gcn::TextField("");
-	
+    textTempRom = new gcn::TextField("");
+    textTempFloppy = new gcn::TextField("");
+    textTempHardfile = new gcn::TextField("");
+    textTempSavestate = new gcn::TextField("");
+
     listBox = new gcn::ListBox(&dirList);
     listBox->setSize(650,170);
     listBox->setBaseColor(baseCol);
@@ -468,21 +461,19 @@ void loadMenu_Init()
     listBoxKeyListener = new ListBoxKeyListener();
     listBox->removeKeyListener(listBox);
     listBox->addKeyListener(listBoxKeyListener);
-#ifdef ANDROID
+
     checkBox_extfilter = new gcn::CheckBox("ext. filter");
     checkBox_extfilter->setPosition(10,270);
     checkBox_extfilter->setId("extFilter");
     extfilterActionListener = new ExtfilterActionListener();
     checkBox_extfilter->addActionListener(extfilterActionListener);
-#endif
+
     window_load->add(button_ok);
     window_load->add(button_select);
     window_load->add(button_open);
     window_load->add(button_cancel);
     window_load->add(listBoxScrollArea);
-#ifdef ANDROID
     window_load->add(checkBox_extfilter);
-#endif
     window_load->setVisible(false);
 }
 
@@ -497,11 +488,10 @@ void loadMenu_Exit()
     delete button_open;
     delete button_cancel;
     delete textTempRom;
-	delete textTempFloppy;
-	delete textTempHardfile;
-#ifdef ANDROID
+    delete textTempFloppy;
+    delete textTempHardfile;
+    delete textTempSavestate;
     delete checkBox_extfilter;
-#endif
 
     delete okButtonActionListener;
     delete selectButtonActionListener;
@@ -509,9 +499,7 @@ void loadMenu_Exit()
     delete cancelButtonActionListener;
     delete listBoxActionListener;
     delete listBoxKeyListener;
-#ifdef ANDROID
     delete extfilterActionListener;
-#endif
 
     delete window_load;
 }
@@ -549,12 +537,12 @@ static void raise_loadMenu_guichan()
         button_cancel->setId("cmdCancel2");
         listBox->setId("dirList2");
     }
-#ifdef ANDROID
+
     if (menuLoad_extfilter==0)
         checkBox_extfilter->setSelected(false);
     else if (menuLoad_extfilter==1)
         checkBox_extfilter->setSelected(true);
-#endif
+
     window_load->setVisible(true);
 //    window_load->requestModalFocus();
     listBox->requestFocus();

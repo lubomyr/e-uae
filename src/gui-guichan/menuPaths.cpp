@@ -49,9 +49,11 @@ gcn::Icon* background_paths;
 gcn::Button* button_rom_path;
 gcn::Button* button_floppy_path;
 gcn::Button* button_hardfile_path;
+gcn::Button* button_savestate_path;
 gcn::TextField* textField_rom_path;
 gcn::TextField* textField_floppy_path;
 gcn::TextField* textField_hardfile_path;
+gcn::TextField* textField_savestate_path;
 
 class PathsButtonActionListener : public gcn::ActionListener
 {
@@ -65,6 +67,9 @@ public:
         }
         if (actionEvent.getSource() == button_hardfile_path) {
             run_menuLoad_guichan(currentDir, MENU_SELECT_HARDFILEPATH);
+        }
+        if (actionEvent.getSource() == button_savestate_path) {
+            run_menuLoad_guichan(currentDir, MENU_SELECT_SAVESTATEPATH);
         }
     }
 };
@@ -116,6 +121,19 @@ void menuPaths_Init()
     textField_hardfile_path->setEnabled(false);
     textField_hardfile_path->setBaseColor(baseCol);
 
+    button_savestate_path = new gcn::Button("State path");
+    button_savestate_path->setSize(100,30);
+    button_savestate_path->setPosition(10,265);
+    button_savestate_path->setBaseColor(baseCol);
+    button_savestate_path->setId("HDFpath");
+    button_savestate_path->addActionListener(pathsButtonActionListener);
+
+    textField_savestate_path = new gcn::TextField("                                                            ");
+    textField_savestate_path->setSize(350,22);
+    textField_savestate_path->setPosition(125,270);
+    textField_savestate_path->setEnabled(false);
+    textField_savestate_path->setBaseColor(baseCol);
+
     window_paths = new gcn::Window("Paths");
     window_paths->setPosition(137,20);
     window_paths->setMovable(false);
@@ -130,6 +148,8 @@ void menuPaths_Init()
     window_paths->add(textField_floppy_path);
     window_paths->add(button_hardfile_path);
     window_paths->add(textField_hardfile_path);
+    window_paths->add(button_savestate_path);
+    window_paths->add(textField_savestate_path);
 }
 
 void menuPaths_Exit()
@@ -144,6 +164,8 @@ void menuPaths_Exit()
     delete textField_floppy_path;
     delete button_hardfile_path;
     delete textField_hardfile_path;
+    delete button_savestate_path;
+    delete textField_savestate_path;
 
     delete window_paths;
 }
@@ -153,6 +175,7 @@ void show_settings_Paths()
     textField_rom_path->setText(prefs_get_attr ("rom_path"));
     textField_floppy_path->setText(prefs_get_attr ("floppy_path"));
     textField_hardfile_path->setText(prefs_get_attr ("hardfile_path"));
+    textField_savestate_path->setText(prefs_get_attr ("savestate_path"));
 }
 
 }

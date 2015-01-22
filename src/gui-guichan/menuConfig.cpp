@@ -24,15 +24,10 @@ extern "C" {
 #define ext2terms configstring.size()>=4 && configstring.substr(configstring.size()-4)
 #define config2terms ext2terms!=".uae" && ext2terms!=".UAE" && ext2terms!=".Uae"
 
-#ifdef WIN23
-static char config_filename_default[255]= {
-    '\\', 't', 'm', 'p', '\\', 'n', 'u', 'l', 'l', '.', 'u', 'a', 'e', '\0'
-};
-#else
 static char config_filename_default[255]= {
     '/', 't', 'm', 'p', '/', 'n', 'u', 'l', 'l', '.', 'u', 'a', 'e', '\0'
 };
-#endif
+
 char *config_filename=(char *)&config_filename_default[0];
 
 extern char launchDir[300];
@@ -41,11 +36,7 @@ static void BuildBaseDir(char *filename)
 {
     strcpy(filename, "");
     strcat(filename, launchDir);
-#ifdef WIN23
-    strcat(filename, "\configurations");
-#else
     strcat(filename, "/configurations");
-#endif
 }
 
 namespace widgets
@@ -54,7 +45,6 @@ void show_settings_Config(void);
 void showWarning(const char *msg, const char *msg2 = "");
 void showInfo(const char *msg, const char *msg2 = "");
 
-extern void run_menuLoad_guichan(char *curr_path, int aLoadType);
 extern void show_settings(void);
 
 extern gcn::Color baseCol;
@@ -106,15 +96,12 @@ public:
             closedir(dir);
         }
         std::sort(files.begin(), files.end());
-#ifdef ANDROIDSDL
-        if (menuLoad_extfilter==1)
-#endif
-            for (int q=0; q<files.size(); q++) {
-                if (configterms) {
-                    files.erase(files.begin()+q);
-                    q--;
-                }
+        for (int q=0; q<files.size(); q++) {
+            if (configterms) {
+                files.erase(files.begin()+q);
+                q--;
             }
+        }
     }
 };
 ConfigListModel configList("configurations");
@@ -126,11 +113,7 @@ public:
         int selected_item;
         selected_item = configlistBox->getSelected();
         BuildBaseDir(config_filename);
-#ifdef WIN23
-        strcat(config_filename, "\\");
-#else
         strcat(config_filename, "/");
-#endif
         strcat(config_filename, configList.getElementAt(selected_item).c_str());
         free_mountinfo (currprefs.mountinfo);
         cfgfile_load(&changed_prefs, config_filename, 0);
@@ -192,11 +175,7 @@ public:
         int selected_item;
         selected_item = configlistBox->getSelected();
         BuildBaseDir(config_filename);
-#ifdef WIN23
-        strcat(config_filename, "\\");
-#else
         strcat(config_filename, "/");
-#endif
         strcat(config_filename, configList.getElementAt(selected_item).c_str());
         if(unlink(config_filename)) {
             showWarning("Failed to delete config.");
@@ -233,22 +212,22 @@ void menuConfig_Init()
     button_cfg_load->addActionListener(cfgloadButtonActionListener);
     button_cfg_save = new gcn::Button("Save");
     button_cfg_save->setId("cfgSave");
-    button_cfg_save->setPosition(416,55);
+    button_cfg_save->setPosition(416,65);
     button_cfg_save->setSize(70, 26);
     button_cfg_save->setBaseColor(baseCol);
     cfgsaveButtonActionListener = new CfgSaveButtonActionListener();
     button_cfg_save->addActionListener(cfgsaveButtonActionListener);
     button_cfg_delete = new gcn::Button("Delete");
     button_cfg_delete->setId("cfgDelete");
-    button_cfg_delete->setPosition(416,100);
+    button_cfg_delete->setPosition(416,120);
     button_cfg_delete->setSize(70, 26);
     button_cfg_delete->setBaseColor(baseCol);
     cfgdeleteButtonActionListener = new CfgDeleteButtonActionListener();
     button_cfg_delete->addActionListener(cfgdeleteButtonActionListener);
     button_cfg_save_global = new gcn::Button("Save Global Config");
     button_cfg_save_global->setId("cfgSave");
-    button_cfg_save_global->setPosition(346,315);
-    button_cfg_save_global->setSize(140, 26);
+    button_cfg_save_global->setPosition(346,335);
+    button_cfg_save_global->setSize(140, 30);
     button_cfg_save_global->setBaseColor(baseCol);
     cfgsaveGlobalButtonActionListener = new CfgSaveGlobalButtonActionListener();
     button_cfg_save_global->addActionListener(cfgsaveGlobalButtonActionListener);
@@ -261,7 +240,7 @@ void menuConfig_Init()
 
     configlistBox = new gcn::ListBox(&configList);
     configlistBox->setId("configList");
-    configlistBox->setSize(650,225);
+    configlistBox->setSize(650,245);
     configlistBox->setBaseColor(baseCol);
     configlistBox->setWrappingEnabled(true);
     configlistBoxActionListener = new ConfiglistBoxActionListener();
@@ -269,7 +248,7 @@ void menuConfig_Init()
     configScrollArea = new gcn::ScrollArea(configlistBox);
     configScrollArea->setFrameSize(1);
     configScrollArea->setPosition(10,40);
-    configScrollArea->setSize(395,263);
+    configScrollArea->setSize(395,283);
     configScrollArea->setScrollbarWidth(20);
     configScrollArea->setBaseColor(baseCol);
 

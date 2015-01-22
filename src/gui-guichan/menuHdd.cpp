@@ -41,7 +41,6 @@ namespace widgets
 void show_settings_Hdd(void);
 void readVolumeInfo(void);
 
-extern void run_menuLoad_guichan(char *curr_path, int aLoadType);
 extern void EditHdd_GUI(int);
 extern void AddDirFs_GUI(void);
 extern void AddHdf_GUI();

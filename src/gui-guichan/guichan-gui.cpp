@@ -249,7 +249,9 @@ void show_settings_Rom(void);
 void show_settings_Ram(void);
 void show_settings_Display(void);
 void show_settings_Sound(void);
+void show_settings_SaveState(void);
 void show_settings_Control(void);
+void show_settings_Custom(void);
 void show_settings_OnScreen(void);
 
 void menuConfig_Init(void);
@@ -272,8 +274,12 @@ void menuDisplay_Init(void);
 void menuDisplay_Exit(void);
 void menuSound_Init(void);
 void menuSound_Exit(void);
+void menuSaveState_Init(void);
+void menuSaveState_Exit(void);
 void menuControl_Init(void);
 void menuControl_Exit(void);
+void menuCustom_Init(void);
+void menuCustom_Exit(void);
 void menuOnScreen_Init(void);
 void menuOnScreen_Exit(void);
 
@@ -312,7 +318,9 @@ extern gcn::Window *window_rom;
 extern gcn::Window *window_ram;
 extern gcn::Window *window_display;
 extern gcn::Window *window_sound;
+extern gcn::Window *window_savestate;
 extern gcn::Window *window_control;
+extern gcn::Window *window_custom;
 extern gcn::Window *window_onScreen;
 
 std::string menuElement[]= {"Config", "Paths", "Floppy drives", "Hard Drives","CPU/FPU","Chipset","ROM","RAM","Display","Sound","SaveStates","Control","Custom","On-screen"};
@@ -387,7 +395,9 @@ public:
         window_ram->setVisible(false);
         window_display->setVisible(false);
         window_sound->setVisible(false);
+        window_savestate->setVisible(false);
         window_control->setVisible(false);
+        window_custom->setVisible(false);
         window_onScreen->setVisible(false);
         if (selectedItem==0)
             window_config->setVisible(true);
@@ -409,8 +419,12 @@ public:
             window_display->setVisible(true);
         else if (selectedItem==9)
             window_sound->setVisible(true);
+        else if (selectedItem==10)
+            window_savestate->setVisible(true);
         else if (selectedItem==11)
             window_control->setVisible(true);
+        else if (selectedItem==12)
+            window_custom->setVisible(true);
         else if (selectedItem==13)
             window_onScreen->setVisible(true);
     }
@@ -494,7 +508,9 @@ void init()
     menuRam_Init();
     menuDisplay_Init();
     menuSound_Init();
+    menuSaveState_Init();
     menuControl_Init();
+    menuCustom_Init();
     menuOnScreen_Init();
 
     addEditHdd_Init();
@@ -519,7 +535,9 @@ void init()
     top->add(window_ram);
     top->add(window_display);
     top->add(window_sound);
+    top->add(window_savestate);
     top->add(window_control);
+    top->add(window_custom);
     top->add(window_onScreen);
     top->add(window_addEditHdd, 120, 90);
     top->add(window_load, 120, 90);
@@ -550,7 +568,9 @@ void halt()
     menuRam_Exit();
     menuDisplay_Exit();
     menuSound_Exit();
+    menuSaveState_Exit();
     menuControl_Exit();
+    menuCustom_Exit();
     menuOnScreen_Exit();
 
     addEditHdd_Exit();
@@ -591,7 +611,9 @@ void show_settings()
     show_settings_Ram();
     show_settings_Display();
     show_settings_Sound();
+    show_settings_SaveState();
     show_settings_Control();
+    show_settings_Custom();
     show_settings_OnScreen();
 }
 
